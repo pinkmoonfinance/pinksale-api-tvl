@@ -1,0 +1,38 @@
+[
+  {
+    "indexed": true,
+    "internalType": "uint256",
+    "name": "id",
+    "type": "uint256"
+  },
+  {
+    "indexed": false,
+    "internalType": "address",
+    "name": "token",
+    "type": "address"
+  },
+  {
+    "indexed": false,
+    "internalType": "address",
+    "name": "owner",
+    "type": "address"
+  },
+  {
+    "indexed": false,
+    "internalType": "uint256",
+    "name": "amount",
+    "type": "uint256"
+  },
+  {
+    "indexed": false,
+    "internalType": "uint256",
+    "name": "total",
+    "type": "uint256"
+  },
+  {
+    "indexed": false,
+    "internalType": "uint256",
+    "name": "timestamp",
+    "type": "uint256"
+  }
+]
