@@ -8,6 +8,7 @@ import { Chain, chainToChainConfig, ZERO, ZERO_ADDRESS, NATIVE_TOKEN, STABLE_COI
 import RpcLoadBalancer from '../../utils/RpcLoadBalancer';
 
 const PinkLockAbi = require('../../../abi/PinkLock.json');
+const PinkLockV2Abi = require('../../../abi/PinklockV2.json');
 const UniswapV2RouterAbi = require('../../../abi/UniswapV2Router.json');
 const UniswapV2FactoryAbi = require('../../../abi/UniswapV2Factory.json');
 const PairAbi = require('../../../abi/Pair.json');
@@ -28,6 +29,7 @@ interface MonitorData {
 export default class TVLMonitor extends BaseMonitor {
   rpcLoadBalancer: RpcLoadBalancer;
   contract: any;
+  contractV2: any;
   routerContract: any;
   poolManagerContract: any;
   nativeTokenAddress: string;
@@ -40,6 +42,10 @@ export default class TVLMonitor extends BaseMonitor {
     this.contract = this.rpcLoadBalancer.createContract(
       PinkLockAbi,
       chainConfig.pinkLock
+    );
+    this.contractV2 = this.rpcLoadBalancer.createContract(
+      PinkLockV2Abi,
+      chainConfig.pinkLockV2
     );
     this.routerContract = this.rpcLoadBalancer.createContract(
       UniswapV2RouterAbi,
@@ -59,12 +65,10 @@ export default class TVLMonitor extends BaseMonitor {
       this.log(`[${this.chainId}] No WETH address provide.`);
       return;
     }
-    this.calculateTVL();
-    this.calculatePoolTVL();
-  }
-
-  async cleanup() {
-    // reset setting key to start scan from index 0
+    this.calculateTVL(this.contract);
+    // this.calculatePoolTVL(); temporaty disable because only pool from 0 to 891 have locked token in pool. It already exists in db
+    await sleep(10000);
+    this.calculateTVL(this.contractV2, `token_lock_list_${this.chainId}_chunk_v2`, `liquidity_lock_list_${this.chainId}_chunk_v2`);
   }
 
   async calculatePoolTVL() {
@@ -174,7 +178,7 @@ export default class TVLMonitor extends BaseMonitor {
               poolAddress
             );
             if (pairAdddress !== ZERO_ADDRESS && amount && amount !== '0') {
-              await this.getLiquidityTVL(pairAdddress, amount, poolAddress);
+              await this.getLiquidityTVL(pairAdddress, amount, poolAddress, 1);
             }
           }
         }
@@ -199,25 +203,25 @@ export default class TVLMonitor extends BaseMonitor {
     }
   }
 
-  async calculateTVL() {
-    this.log('calculateTVL IN PROGRESS...');
-    const tokenCount = await this.tokenCount();
-    const liquidityCount = await this.liquidityCount();
+  async calculateTVL(contract: any, tokenLockListKey?: string, liquidityLockListKey?: string) {
+    const tokenCount = await this.tokenCount(contract);
+    const liquidityCount = await this.liquidityCount(contract);
+    this.log(`Calc TVL for token: ${tokenCount}, liquidity token: ${liquidityCount}`);
     await Promise.all([
-      this.getTokenLockList(Number(tokenCount)),
-      this.getLiquidityLockList(Number(liquidityCount)),
+      this.getTokenLockList(Number(tokenCount), contract, tokenLockListKey),
+      this.getLiquidityLockList(Number(liquidityCount), contract, liquidityLockListKey),
     ]);
     this.log('calculateTVL DONE');
     await sleep(60000);
-    this.calculateTVL();
+    this.calculateTVL(contract, tokenLockListKey, liquidityLockListKey);
   }
 
-  async tokenCount() {
-    return await this.contract.methods.allNormalTokenLockedCount().call();
+  async tokenCount(contract: any) {
+    return await contract.methods.allNormalTokenLockedCount().call();
   }
 
-  async liquidityCount() {
-    return await this.contract.methods.allLpTokenLockedCount().call();
+  async liquidityCount(contract: any) {
+    return await contract.methods.allLpTokenLockedCount().call();
   }
 
   async getReserves(token: string, amount: string) {
@@ -276,7 +280,7 @@ export default class TVLMonitor extends BaseMonitor {
       : priceInBNB;
   }
 
-  async getLiquidityTVL(pair: string, amount: string, pool = '') {
+  async getLiquidityTVL(pair: string, amount: string, pool = '', version: number) {
     try {
       if (pair === ZERO_ADDRESS || amount === '0') return null;
       const pairContract = this.rpcLoadBalancer.createContract(PairAbi, pair);
@@ -306,14 +310,25 @@ export default class TVLMonitor extends BaseMonitor {
           .div(parseUnits(lpAmount.toString(), 0))
           .mul(parseUnits(amount, 0))
           .div(parseEther('1'));
-        await TVLService.create(
-          pair,
-          parseFloat(formatEther(tvl)),
-          this.chainId,
-          true,
-          false,
-          pool
-        );
+        if (version === 2) {
+          await TVLService.createV2(
+            pair,
+            parseFloat(formatEther(tvl)),
+            this.chainId,
+            true,
+            false,
+            pool,
+          );
+        } else {
+          await TVLService.create(
+            pair,
+            parseFloat(formatEther(tvl)),
+            this.chainId,
+            true,
+            false,
+            pool,
+          );
+        }
       } else {
         const stableCoinReserve = this.stableCoins
           .map((token) => token.toLowerCase())
@@ -332,23 +347,34 @@ export default class TVLMonitor extends BaseMonitor {
           .div(parseUnits(lpAmount.toString(), 0))
           .mul(parseUnits(amount, 0))
           .div(parseEther('1'));
-        await TVLService.create(
-          pair,
-          parseFloat(formatEther(tvl)),
-          this.chainId,
-          true,
-          true,
-          pool
-        );
+        if (version === 2) {
+          await TVLService.createV2(
+            pair,
+            parseFloat(formatEther(tvl)),
+            this.chainId,
+            true,
+            true,
+            pool,
+          );
+        } else {
+          await TVLService.create(
+            pair,
+            parseFloat(formatEther(tvl)),
+            this.chainId,
+            true,
+            true,
+            pool,
+          );
+        }
       }
     } catch (e) {
       console.log(e);
     }
   }
 
-  async liquidityLockRecordsTVL(start: number, end: number) {
+  async liquidityLockRecordsTVL(start: number, end: number, contract: any, isV2 = false) {
     try {
-      const tokenLockedRecords = await this.contract.methods
+      const tokenLockedRecords = await contract.methods
         .getCumulativeLpTokenLockInfo(start, end)
         .call();
       const records: TokenLockRecord[] =
@@ -360,7 +386,7 @@ export default class TVLMonitor extends BaseMonitor {
           })
         ) ?? [];
       const promises = records.map((item) =>
-        this.getLiquidityTVL(item.token, item.amount)
+        this.getLiquidityTVL(item.token, item.amount, undefined, isV2 ? 2 : 1)
       );
       await Promise.all(promises);
       console.log('Saved liquidity TVL: ', start, end);
@@ -369,9 +395,9 @@ export default class TVLMonitor extends BaseMonitor {
     }
   }
 
-  async tokenLockRecordsTVL(start: number, end: number) {
+  async tokenLockRecordsTVL(start: number, end: number, contract: any, version: number) {
     try {
-      const tokenLockedRecords = await this.contract.methods
+      const tokenLockedRecords = await contract.methods
         .getCumulativeNormalTokenLockInfo(start, end)
         .call();
       const records: TokenLockRecord[] =
@@ -399,10 +425,20 @@ export default class TVLMonitor extends BaseMonitor {
         }));
       await Promise.all(
         results.map((item) =>
-          TVLService.create(
+          version === 2 ? TVLService.createV2(
             item.token!,
             parseFloat(formatEther(item.tvl)),
-            this.chainId
+            this.chainId,
+            undefined,
+            undefined,
+            undefined,
+          ) : TVLService.create(
+            item.token!,
+            parseFloat(formatEther(item.tvl)),
+            this.chainId,
+            undefined,
+            undefined,
+            undefined,
           )
         )
       );
@@ -442,9 +478,9 @@ export default class TVLMonitor extends BaseMonitor {
     );
   }
 
-  async getTokenLockList(total: number) {
+  async getTokenLockList(total: number, contract: any, key?: string) {
     const storedChunkNum = await SettingService.getNumberValue(
-      `token_lock_list_${this.chainId}_chunk`
+      key || `token_lock_list_${this.chainId}_chunk`
     );
     // step = 50
     const indexes = chunk(
@@ -465,17 +501,17 @@ export default class TVLMonitor extends BaseMonitor {
       : 0;
     const [start, end] = indexes[selectedIndex];
     this.log(`getTokenLockList: ${start} - ${end}`);
-    await this.tokenLockRecordsTVL(start, end);
+    await this.tokenLockRecordsTVL(start, end, contract, typeof key !== 'undefined' ? 2 : 1);
     await SettingService.updateIfAlreadyExists(
-      `token_lock_list_${this.chainId}_chunk`,
+      key || `token_lock_list_${this.chainId}_chunk`,
       (selectedIndex + 1).toString()
     );
     // await Promise.all([this.tokenLockRecordsTVL(0, 50)]);
   }
 
-  async getLiquidityLockList(total: number) {
+  async getLiquidityLockList(total: number, contract: any, key?: string) {
     const storedChunkNum = await SettingService.getNumberValue(
-      `liquidity_lock_list_${this.chainId}_chunk`
+      key || `liquidity_lock_list_${this.chainId}_chunk`
     );
     // step = 50
     const indexes = chunk(
@@ -496,9 +532,9 @@ export default class TVLMonitor extends BaseMonitor {
       : 0;
     const [start, end] = indexes[selectedIndex];
     console.log('Get liquidity tvl for ', start, end);
-    await this.liquidityLockRecordsTVL(start, end);
+    await this.liquidityLockRecordsTVL(start, end, contract, typeof key !== 'undefined');
     await SettingService.updateIfAlreadyExists(
-      `liquidity_lock_list_${this.chainId}_chunk`,
+      key || `liquidity_lock_list_${this.chainId}_chunk`,
       (selectedIndex + 1).toString()
     );
     // await Promise.all([this.tokenLockRecordsTVL(0, 50)]);

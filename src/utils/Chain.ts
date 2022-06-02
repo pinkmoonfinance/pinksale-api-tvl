@@ -124,9 +124,9 @@ export const chainToChainConfig: ConfigMapping = {
     poolManager: '0x3338CCa60f829Fa7139656bB910c63D44aFD270A',
     pinkLock: '0x7ee058420e5937496F5a2096f04caA7721cF70cc',
     pinklockCreatedBlock: 11385323,
-    pinklockV2CreatedBlock: 0,
+    pinklockV2CreatedBlock: 17817063,
     tvlBlockBacktrack: getNumberOfBlocks(30, 3), // 600 blocks
-    pinkLockV2: '',
+    pinkLockV2: '0x407993575c91ce7643a4d4cCACc9A98c36eE1BBE',
     tvlRouter: '0x10ED43C718714eb63d5aA57B78B54704E256024E', // pancake
   },
   [Chain.BSC_TEST]: {
@@ -146,9 +146,9 @@ export const chainToChainConfig: ConfigMapping = {
     poolManager: '0x85e833cfbcb9747d81c7Ea43F0732ceAc05A9AE3',
     pinkLock: '0x5fb71Dbf7248a01bf96cE2AB2DA34EEAbE58c261',
     pinklockCreatedBlock: 17498421,
-    pinklockV2CreatedBlock: 0,
+    pinklockV2CreatedBlock: 28352408,
     tvlBlockBacktrack: getNumberOfBlocks(30, 3), // 600 blocks
-    pinkLockV2: '',
+    pinkLockV2: '0x6C9A0D8B1c7a95a323d744dE30cf027694710633',
     tvlRouter: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff', // quickswap
   },
   [Chain.ETH]: {
@@ -157,9 +157,9 @@ export const chainToChainConfig: ConfigMapping = {
     poolManager: '0xAd574c1B36cb5F03Eb471A9501c4Ccff8040dD2d',
     pinkLock: '0x33d4cC8716Beb13F814F538Ad3b2de3b036f5e2A',
     pinklockCreatedBlock: 13515162,
-    pinklockV2CreatedBlock: 0,
+    pinklockV2CreatedBlock: 14780708,
     tvlBlockBacktrack: getNumberOfBlocks(30, 3), // 600 blocks
-    pinkLockV2: '',
+    pinkLockV2: '0x71B5759d73262FBb223956913ecF4ecC51057641',
     tvlRouter: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', // uniswap
   },
   [Chain.AVAX]: {
@@ -168,20 +168,20 @@ export const chainToChainConfig: ConfigMapping = {
     poolManager: '0x72d44aeCf0DbF2485D2eD0dA4189bd9f77bf41B8',
     pinkLock: '0x4DffB05d1Bc222A2852799e2076e956acb589322',
     pinklockCreatedBlock: 7104996,
-    pinklockV2CreatedBlock: 0,
+    pinklockV2CreatedBlock: 14732673,
     tvlBlockBacktrack: getNumberOfBlocks(30, 3), // 600 blocks
-    pinkLockV2: '',
+    pinkLockV2: '0x9479C6484a392113bB829A15E7c9E033C9e70D30',
     tvlRouter: '0xEC3452f87CBa05c5a8c3529b6c961779EB77f257', // traderjoe
   },
   [Chain.KCC]: {
     chainId: 321,
     rpcs: KCC_RPC,
     poolManager: '0xAd574c1B36cb5F03Eb471A9501c4Ccff8040dD2d',
-    pinkLock: '',
-    pinklockCreatedBlock: 0,
-    pinklockV2CreatedBlock: 0,
+    pinkLock: '0x886915941c462d775da40b18ea0b7c242cd01a8d',
+    pinklockCreatedBlock: 8931395,
+    pinklockV2CreatedBlock: 10028389,
     tvlBlockBacktrack: getNumberOfBlocks(30, 3), // 600 blocks
-    pinkLockV2: '',
+    pinkLockV2: '0x575cBAb3597C33dEC58f178BC3e01639749A7c1D',
     tvlRouter: '0xa58350d6dee8441aa42754346860e3545cc83cda', // kuswap
   },
   [Chain.CRONOS]: {
@@ -190,9 +190,9 @@ export const chainToChainConfig: ConfigMapping = {
     poolManager: '0xBE0b139ABc90723Af76a89D3051f60Ba1B64c8d9',
     pinkLock: '0xdD6E31A046b828CbBAfb939C2a394629aff8BBdC',
     pinklockCreatedBlock: 2143579,
-    pinklockV2CreatedBlock: 0,
+    pinklockV2CreatedBlock: 2779357,
     tvlBlockBacktrack: getNumberOfBlocks(30, 3), // 600 blocks
-    pinkLockV2: '',
+    pinkLockV2: '0x102137A9F278B013419332f82aCEA429D944Fc34',
     tvlRouter: '0x145677FC4d9b8F19B5D56d1820c48e0443049a30', // Mad Meerkat Finance
   },
 };

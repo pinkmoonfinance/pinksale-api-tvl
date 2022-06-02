@@ -7,13 +7,16 @@ const pinklock = async (req: Request, res: Response) => {
     if (!chainId) {
       return res.sendStatus(404);
     }
-    const [native, stable] = await Promise.all([
-      TVLService.tvl(Number(chainId)), // return tvl in native token. Ex: ETH, BNB...
-      TVLService.tvl(Number(chainId), true), // return tvl in stablecoin. Ex: USDT, USDC...
+    // tvl by native token and stable coin
+    const [native, stable, nativeV2, stableV2] = await Promise.all([
+      TVLService.tvl(Number(chainId)),
+      TVLService.tvl(Number(chainId), true),
+      TVLService.tvlV2(Number(chainId)),
+      TVLService.tvlV2(Number(chainId), true),
     ]);
     return res.send({
-      tvl: native,
-      stableCoinTvl: stable,
+      tvl: Number(native || 0) + Number(nativeV2 || 0),
+      stableCoinTvl: Number(stable || 0) + Number(stableV2 || 0),
     });
   } catch (e) {
     console.log(e);

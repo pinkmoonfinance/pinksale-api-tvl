@@ -49,13 +49,22 @@ const SettingService = {
             key: `liquidity_lock_list_${chainData.chainId}_chunk`,
           }),
           Setting.deleteOne({
+            key: `liquidity_lock_list_${chainData.chainId}_chunk_v2`,
+          }),
+          Setting.deleteOne({
             key: `pool_tvl_${chainData.chainId}_chunk`,
           }),
           Setting.deleteOne({
             key: `token_lock_list_${chainData.chainId}_chunk`,
           }),
           Setting.deleteOne({
+            key: `token_lock_list_${chainData.chainId}_chunk_v2`,
+          }),
+          Setting.deleteOne({
             key: `tvl_records_${chainData.chainId}_lptoken`,
+          }),
+          Setting.deleteOne({
+            key: `tvl_records_${chainData.chainId}_token`,
           }),
           Setting.deleteOne({
             key: `tvl_records_${chainData.chainId}_token`,

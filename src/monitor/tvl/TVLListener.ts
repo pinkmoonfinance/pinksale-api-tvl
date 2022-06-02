@@ -2,7 +2,10 @@ import { formatEther, parseEther, parseUnits } from '@ethersproject/units';
 import { BaseMonitor } from '..';
 import SettingService from '../../services/SettingService';
 import TVLService from '../../services/TVLService';
-import { PinklockV1LockRemovedSignature, PinklockV2LockVestedSignature } from '../../signatures';
+import {
+  PinklockV1LockRemovedSignature,
+  PinklockV2LockVestedSignature,
+} from '../../signatures';
 import { sleep } from '../../utils';
 import {
   Chain,
@@ -80,7 +83,8 @@ class TVLListener extends BaseMonitor {
       `tvl_listener_v${version}_${this.chainId}`
     );
     const blockHeight = await this.rpcLoadBalancer.getCurrentBlock();
-    const deserveStartBlock = storedBlock || (version === 2 ? this.genesisBlockV2 : this.genesisBlock);
+    const deserveStartBlock =
+      storedBlock || (version === 2 ? this.genesisBlockV2 : this.genesisBlock);
     const startBlock =
       deserveStartBlock + this.backtrackBlocks >= blockHeight
         ? blockHeight - this.backtrackBlocks
@@ -98,10 +102,7 @@ class TVLListener extends BaseMonitor {
   async monitorV1() {
     try {
       const { startBlock, endBlock } = await this.getBlockRange();
-      const removedLogs = await this.getLockRemovedEvents(
-        startBlock,
-        endBlock,
-      );
+      const removedLogs = await this.getLockRemovedEvents(startBlock, endBlock);
       if (removedLogs.length > 0) {
         for (const log of removedLogs) {
           await this.updateV1LockRecord(log.id, log.token, log.amount);
@@ -121,14 +122,10 @@ class TVLListener extends BaseMonitor {
   async monitorV2() {
     try {
       const { startBlock, endBlock } = await this.getBlockRange(2);
-      const logs = await this.getV2LockVestedEvents(
-        startBlock,
-        endBlock,
-      );
+      const logs = await this.getV2LockVestedEvents(startBlock, endBlock);
       if (logs.length > 0) {
-        console.log(logs);
         for (const log of logs) {
-          await this.updateV2LockRecord(log.id, log.remaining);
+          await this.updateV2LockRecord(log.id, log.remaining, log.token);
         }
       }
       await SettingService.updateIfAlreadyExists(
@@ -142,10 +139,7 @@ class TVLListener extends BaseMonitor {
     }
   }
 
-  async getLockRemovedEvents(
-    fromBlock: number,
-    toBlock: number,
-  ) {
+  async getLockRemovedEvents(fromBlock: number, toBlock: number) {
     try {
       this.log(`Get LockRemoved event from #${fromBlock} to #${toBlock}`);
       const logs = await this.rpcLoadBalancer
@@ -182,10 +176,7 @@ class TVLListener extends BaseMonitor {
     }
   }
 
-  async getV2LockVestedEvents(
-    fromBlock: number,
-    toBlock: number,
-  ) {
+  async getV2LockVestedEvents(fromBlock: number, toBlock: number) {
     try {
       this.log(`Get LockVested event from #${fromBlock} to #${toBlock}`);
       const logs = await this.rpcLoadBalancer
@@ -348,7 +339,9 @@ class TVLListener extends BaseMonitor {
       const isLp = await this.isLpToken(address);
       const tvlLocked = await TVLService.findByAddress(address, this.chainId);
       if (tvlLocked === null) {
-        this.log(`Can not find record with address ${address}. Dont need to update.`)
+        this.log(
+          `Can not find record with address ${address}. Dont need to update.`
+        );
         return;
       }
       let tvl: number | null = 0;
@@ -357,7 +350,11 @@ class TVLListener extends BaseMonitor {
       } else {
         const reserves = await this.getReserves(address);
         if (reserves === null) return;
-        tvl = await this.getTVL(amount, reserves.nativeReserve, reserves.tokenReserve);
+        tvl = await this.getTVL(
+          amount,
+          reserves.nativeReserve,
+          reserves.tokenReserve
+        );
       }
       if (!tvl) return;
       const newTVL = tvlLocked.tvl - (tvl || 0);
@@ -369,15 +366,35 @@ class TVLListener extends BaseMonitor {
     }
   }
 
-  async updateV2LockRecord(id: string, amount: string) {
+  async updateV2LockRecord(id: string, amount: string, address: string) {
     try {
       const tvlLocked = await TVLService.findTVLRecordById(id, this.chainId);
       if (tvlLocked) {
         await TVLService.updateTVLRecord(id, this.chainId, {
           amount,
         });
-        this.log(`Update record ${id}. Amount: ${tvlLocked.amount} to ${amount}`);
+        this.log(
+          `Update record ${id}. Amount: ${tvlLocked.amount} to ${amount}`
+        );
       }
+      let tvl: number | null = 0;
+      const isLp = await this.isLpToken(address);
+      if (isLp) {
+        tvl = await this.getLiquidityTVL(address, amount);
+      } else {
+        const reserves = await this.getReserves(address);
+        if (reserves === null) return;
+        tvl = await this.getTVL(
+          amount,
+          reserves.nativeReserve,
+          reserves.tokenReserve
+        );
+      }
+      if (!tvl) return;
+      const newTVL = tvlLocked.tvl - (tvl || 0);
+      await TVLService.updateV2ByChain(address, this.chainId, {
+        tvl: newTVL <= 0 ? 0 : newTVL,
+      });
     } catch (e) {
       this.logError(e);
     }
